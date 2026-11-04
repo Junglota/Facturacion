@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <FrontendRoot>$(MSBuildProjectDirectory)/../../web-client</FrontendRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Integration.Contracts/Integration.Contracts.csproj" />
+    <ProjectReference Include="../Inventory.Api/Inventory.Api.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Sales.Api/Sales.Api.csproj" ReferenceOutputAssembly="false" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.21" />
+    <Compile Include="../Shared/SqliteDb.cs" Link="SqliteDb.cs" />
+  </ItemGroup>
+  <Target Name="RestoreVue"
+          Inputs="$(FrontendRoot)/package.json;$(FrontendRoot)/package-lock.json"
+          Outputs="$(FrontendRoot)/node_modules/.package-lock.json">
+    <Exec WorkingDirectory="$(FrontendRoot)" Command="npm ci --no-audit --no-fund" />
+  </Target>
+  <Target Name="BuildVue" BeforeTargets="PrepareForBuild" DependsOnTargets="RestoreVue">
+    <Exec WorkingDirectory="$(FrontendRoot)" Command="npm run build" />
+    <ItemGroup>
+      <VueDist Include="$(FrontendRoot)/dist/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(VueDist)"
+          DestinationFiles="@(VueDist->'$(MSBuildProjectDirectory)/wwwroot/%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <ItemGroup>
+      <Content Remove="wwwroot/**/*" />
+      <Content Include="wwwroot/**/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+  <Target Name="BundleServices" AfterTargets="ComputeFilesToPublish">
+    <PropertyGroup>
+      <BundledServicesRoot>$(MSBuildProjectDirectory)/obj/bundled-services/$(Configuration)/</BundledServicesRoot>
+    </PropertyGroup>
+    <MSBuild Projects="../Inventory.Api/Inventory.Api.csproj" Targets="Publish" RemoveProperties="PublishProfile;PublishProfileFullPath;PublishUrl;WebPublishMethod;DeployOnBuild"
+             Properties="Configuration=$(Configuration);PublishDir=$(BundledServicesRoot)inventory/;UseAppHost=false" />
+    <MSBuild Projects="../Sales.Api/Sales.Api.csproj" Targets="Publish" RemoveProperties="PublishProfile;PublishProfileFullPath;PublishUrl;WebPublishMethod;DeployOnBuild"
+             Properties="Configuration=$(Configuration);PublishDir=$(BundledServicesRoot)sales/;UseAppHost=false" />
+    <ItemGroup>
+      <ServicePublishFiles Include="$(BundledServicesRoot)**/*" />
+      <ResolvedFileToPublish Include="@(ServicePublishFiles)">
+        <RelativePath>services/%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+</Project>

@@ -1,0 +1,11 @@
+bin/
+obj/
+data/
+.vs/
+.venv/
+.artifacts-check/
+artifacts/
+src/Integration.Api/wwwroot/
+*.db
+*.db-shm
+*.db-wal
